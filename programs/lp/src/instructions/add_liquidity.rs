@@ -5,6 +5,7 @@ use anchor_spl::{
 };
 use ra_solana_math::FixedPoint;
 
+use crate::math::sqrt;
 use crate::{error::LpError, LP_MINT_SEED, POOL_STATE_SEED};
 use crate::{PoolState, VAULT_A_SEED, VAULT_B_SEED};
 
@@ -29,7 +30,8 @@ pub fn handle_add_liquidity(
     let (lp_tokens_out, supply_increase) = if reserve_a == 0 && reserve_b == 0 {
         let a = FixedPoint::from_int(amount_a);
         let b = FixedPoint::from_int(amount_b);
-        let ab = a.mul(&b)?.sqrt()?.to_u64()?;
+        let ab = sqrt(a.mul(&b)?.to_u128()?) as u64;
+
         require!(ab > MINIMUM_LIQUIDITY, LpError::LowInitialLiquidity);
         let ab_locked = ab - MINIMUM_LIQUIDITY;
         (ab_locked, ab)
