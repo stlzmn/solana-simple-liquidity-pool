@@ -21,7 +21,7 @@ pub fn handle_swap(
     let reserve_b = ctx.accounts.pool_state.reserve_b;
     let old_k = FixedPoint::from_int(reserve_a)
         .mul(&FixedPoint::from_int(reserve_b))?
-        .to_u128()?;
+        .to_u64()?;
 
     let (reserve_in, reserve_out) = if a_to_b {
         (reserve_a, reserve_b)
@@ -45,15 +45,19 @@ pub fn handle_swap(
     };
 
     let fee_num = FixedPoint::from_int(BPS_DENOMINATOR - FEE_BPS);
-    let fee_bps = FixedPoint::from_int(BPS_DENOMINATOR);
+    let fee_denom = FixedPoint::from_int(BPS_DENOMINATOR);
     let effective_amount_in = FixedPoint::from_int(amount_in)
         .mul(&fee_num)?
-        .div(&fee_bps)?;
+        .div(&fee_denom)?;
 
-    let amount_out = FixedPoint::from_int(reserve_out)
-        .mul(&effective_amount_in)?
-        .div(&FixedPoint::from_int(reserve_in).add(&effective_amount_in)?)?
-        .to_u64()?;
+    // let amount_out = FixedPoint::from_int(reserve_out)
+    //     .mul(&effective_amount_in)?
+    //     .div(&FixedPoint::from_int(reserve_in).add(&effective_amount_in)?)?
+    //     .to_u64()?;
+    //
+    let new_y = FixedPoint::from_int(old_k)
+        .div(&FixedPoint::from_int(reserve_a).add(&effective_amount_in)?)?;
+    let amount_out = FixedPoint::from_int(reserve_out).sub(&new_y)?.to_u64()?;
 
     require!(
         amount_out >= min_amount_out,
@@ -77,7 +81,7 @@ pub fn handle_swap(
 
     let new_k = FixedPoint::from_int(new_reserve_in)
         .mul(&FixedPoint::from_int(new_reserve_out))?
-        .to_u128()?;
+        .to_u64()?;
 
     require!(new_k >= old_k, LpError::LpLossPrevented);
 
@@ -149,7 +153,7 @@ pub struct Swap<'info> {
         mut,
         associated_token::authority = signer,
         associated_token::mint = mint_a,
-        associated_token::token_program = associated_token_program,
+        associated_token::token_program = token_program,
     )]
     pub ata_a: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -157,7 +161,7 @@ pub struct Swap<'info> {
         mut,
         associated_token::authority = signer,
         associated_token::mint = mint_b,
-        associated_token::token_program = associated_token_program,
+        associated_token::token_program = token_program,
     )]
     pub ata_b: Box<InterfaceAccount<'info, TokenAccount>>,
 

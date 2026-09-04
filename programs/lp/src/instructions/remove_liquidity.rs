@@ -124,6 +124,7 @@ pub struct RemoveLiquidity<'info> {
         bump
     )]
     pub vault_a: Box<InterfaceAccount<'info, TokenAccount>>,
+
     #[account(
         mut,
         token::authority = pool_state,
@@ -137,7 +138,7 @@ pub struct RemoveLiquidity<'info> {
         mut,
         associated_token::authority = signer,
         associated_token::mint = lp_mint,
-        associated_token::token_program = associated_token_program,
+        associated_token::token_program = token_program,
     )]
     pub lp_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 

@@ -479,5 +479,580 @@ fn test_too_low_liquidity() {
     let res = send(&mut ctx.svm, instruction, &ctx.user, &[&ctx.user]);
     let logs = res.unwrap_err().meta.logs.join(" ");
     assert!(logs.contains("LowInitialLiquidity"), "logs: {}", logs);
+}
+
+#[test]
+fn remove_liquidity() {
+    let mut ctx = setup();
+
+    let amount_a: u64 = 20000;
+    let amount_b: u64 = 20000;
+    let min_lp_tokens: u64 = 1;
+
+    let ata_a = create_ata(&mut ctx.svm, &ctx.user, &ctx.user.pubkey(), &ctx.mint_a);
+    let ata_b = create_ata(&mut ctx.svm, &ctx.user, &ctx.user.pubkey(), &ctx.mint_b);
+    let lp_token_ata = get_associated_token_address(&ctx.user.pubkey(), &ctx.lp_mint);
+
+    mint_to(
+        &mut ctx.svm,
+        &ctx.user,
+        &ctx.user.pubkey(),
+        &ata_a,
+        &ctx.mint_a,
+        amount_a,
+    );
+    mint_to(
+        &mut ctx.svm,
+        &ctx.user,
+        &ctx.user.pubkey(),
+        &ata_b,
+        &ctx.mint_b,
+        amount_b,
+    );
+
+    assert_eq!(token_balance(&ctx.svm, &ata_a), amount_a);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), amount_b);
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, 0);
+    assert_eq!(pool_state.reserve_b, 0);
+
+    let instruction = Instruction::new_with_bytes(
+        ctx.program_id,
+        &lp::instruction::AddLiquidity {
+            amount_a,
+            amount_b,
+            min_lp_tokens,
+        }
+        .data(),
+        lp::accounts::AddLiquidity {
+            signer: ctx.user.pubkey(),
+            mint_a: ctx.mint_a,
+            mint_b: ctx.mint_b,
+            lp_mint: ctx.lp_mint,
+            pool_state: ctx.pool_state,
+            ata_a,
+            ata_b,
+            vault_a: ctx.vault_a,
+            vault_b: ctx.vault_b,
+            lp_token_account: ctx.user_lp_token_ata,
+            system_program: system_program::ID,
+            token_program: token_program_id,
+            associated_token_program: associated_token_id,
+        }
+        .to_account_metas(None),
+    );
+    let _ = send(&mut ctx.svm, instruction, &ctx.user, &[&ctx.user]).unwrap();
+
+    assert_eq!(token_balance(&ctx.svm, &ata_a), 0);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), 0);
+    assert_eq!(token_balance(&ctx.svm, &ctx.vault_a), amount_a);
+    assert_eq!(token_balance(&ctx.svm, &ctx.vault_b), amount_b);
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, amount_a);
+    assert_eq!(pool_state.reserve_b, amount_b);
+    assert_eq!(pool_state.lp_tokens_supply, 20000);
+    assert_eq!(token_balance(&ctx.svm, &lp_token_ata), 19000);
+
+    let lp_tokens = token_balance(&ctx.svm, &lp_token_ata);
+    let min_amount_a = 1;
+    let min_amount_b = 1;
+
+    let instruction = Instruction::new_with_bytes(
+        ctx.program_id,
+        &lp::instruction::RemoveLiquidity {
+            lp_tokens,
+            min_amount_a,
+            min_amount_b,
+        }
+        .data(),
+        lp::accounts::RemoveLiquidity {
+            signer: ctx.user.pubkey(),
+            mint_a: ctx.mint_a,
+            mint_b: ctx.mint_b,
+            lp_mint: ctx.lp_mint,
+            pool_state: ctx.pool_state,
+            ata_a,
+            ata_b,
+            vault_a: ctx.vault_a,
+            vault_b: ctx.vault_b,
+            lp_token_account: ctx.user_lp_token_ata,
+            system_program: system_program::ID,
+            token_program: token_program_id,
+            associated_token_program: associated_token_id,
+        }
+        .to_account_metas(None),
+    );
+    let _ = send(&mut ctx.svm, instruction, &ctx.user, &[&ctx.user]).unwrap();
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, 1000);
+    assert_eq!(pool_state.reserve_b, 1000);
+    assert_eq!(pool_state.lp_tokens_supply, 1000);
+    assert_eq!(token_balance(&ctx.svm, &lp_token_ata), 0);
+}
+
+#[test]
+fn remove_liquidity_too_high_min_thresholds() {
+    let mut ctx = setup();
+
+    let amount_a: u64 = 20000;
+    let amount_b: u64 = 20000;
+    let min_lp_tokens: u64 = 1;
+
+    let ata_a = create_ata(&mut ctx.svm, &ctx.user, &ctx.user.pubkey(), &ctx.mint_a);
+    let ata_b = create_ata(&mut ctx.svm, &ctx.user, &ctx.user.pubkey(), &ctx.mint_b);
+    let lp_token_ata = get_associated_token_address(&ctx.user.pubkey(), &ctx.lp_mint);
+
+    mint_to(
+        &mut ctx.svm,
+        &ctx.user,
+        &ctx.user.pubkey(),
+        &ata_a,
+        &ctx.mint_a,
+        amount_a,
+    );
+    mint_to(
+        &mut ctx.svm,
+        &ctx.user,
+        &ctx.user.pubkey(),
+        &ata_b,
+        &ctx.mint_b,
+        amount_b,
+    );
+
+    assert_eq!(token_balance(&ctx.svm, &ata_a), amount_a);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), amount_b);
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, 0);
+    assert_eq!(pool_state.reserve_b, 0);
+
+    let instruction = Instruction::new_with_bytes(
+        ctx.program_id,
+        &lp::instruction::AddLiquidity {
+            amount_a,
+            amount_b,
+            min_lp_tokens,
+        }
+        .data(),
+        lp::accounts::AddLiquidity {
+            signer: ctx.user.pubkey(),
+            mint_a: ctx.mint_a,
+            mint_b: ctx.mint_b,
+            lp_mint: ctx.lp_mint,
+            pool_state: ctx.pool_state,
+            ata_a,
+            ata_b,
+            vault_a: ctx.vault_a,
+            vault_b: ctx.vault_b,
+            lp_token_account: ctx.user_lp_token_ata,
+            system_program: system_program::ID,
+            token_program: token_program_id,
+            associated_token_program: associated_token_id,
+        }
+        .to_account_metas(None),
+    );
+    let _ = send(&mut ctx.svm, instruction, &ctx.user, &[&ctx.user]).unwrap();
+
+    assert_eq!(token_balance(&ctx.svm, &ata_a), 0);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), 0);
+    assert_eq!(token_balance(&ctx.svm, &ctx.vault_a), amount_a);
+    assert_eq!(token_balance(&ctx.svm, &ctx.vault_b), amount_b);
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, amount_a);
+    assert_eq!(pool_state.reserve_b, amount_b);
+    assert_eq!(pool_state.lp_tokens_supply, 20000);
+    assert_eq!(token_balance(&ctx.svm, &lp_token_ata), 19000);
+
+    let lp_tokens = token_balance(&ctx.svm, &lp_token_ata);
+    let min_amount_a = 100000;
+    let min_amount_b = 100000;
+
+    let instruction = Instruction::new_with_bytes(
+        ctx.program_id,
+        &lp::instruction::RemoveLiquidity {
+            lp_tokens,
+            min_amount_a,
+            min_amount_b,
+        }
+        .data(),
+        lp::accounts::RemoveLiquidity {
+            signer: ctx.user.pubkey(),
+            mint_a: ctx.mint_a,
+            mint_b: ctx.mint_b,
+            lp_mint: ctx.lp_mint,
+            pool_state: ctx.pool_state,
+            ata_a,
+            ata_b,
+            vault_a: ctx.vault_a,
+            vault_b: ctx.vault_b,
+            lp_token_account: ctx.user_lp_token_ata,
+            system_program: system_program::ID,
+            token_program: token_program_id,
+            associated_token_program: associated_token_id,
+        }
+        .to_account_metas(None),
+    );
+    let res = send(&mut ctx.svm, instruction, &ctx.user, &[&ctx.user]);
+    let logs = res.unwrap_err().meta.logs.join(" ");
+    assert!(
+        logs.contains("MinTokenAmountNotSatisfied"),
+        "logs: {}",
+        logs
+    );
+}
+
+#[test]
+fn swap_a_to_b() {
+    let mut ctx = setup();
+
+    let amount_a: u64 = 20000;
+    let amount_b: u64 = 20000;
+    let min_lp_tokens: u64 = 1;
+
+    let ata_a = create_ata(&mut ctx.svm, &ctx.user, &ctx.user.pubkey(), &ctx.mint_a);
+    let ata_b = create_ata(&mut ctx.svm, &ctx.user, &ctx.user.pubkey(), &ctx.mint_b);
+    let lp_token_ata = get_associated_token_address(&ctx.user.pubkey(), &ctx.lp_mint);
+
+    mint_to(
+        &mut ctx.svm,
+        &ctx.user,
+        &ctx.user.pubkey(),
+        &ata_a,
+        &ctx.mint_a,
+        amount_a,
+    );
+    mint_to(
+        &mut ctx.svm,
+        &ctx.user,
+        &ctx.user.pubkey(),
+        &ata_b,
+        &ctx.mint_b,
+        amount_b,
+    );
+
+    assert_eq!(token_balance(&ctx.svm, &ata_a), amount_a);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), amount_b);
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, 0);
+    assert_eq!(pool_state.reserve_b, 0);
+
+    let instruction = Instruction::new_with_bytes(
+        ctx.program_id,
+        &lp::instruction::AddLiquidity {
+            amount_a: amount_a / 2,
+            amount_b: amount_b / 2,
+            min_lp_tokens,
+        }
+        .data(),
+        lp::accounts::AddLiquidity {
+            signer: ctx.user.pubkey(),
+            mint_a: ctx.mint_a,
+            mint_b: ctx.mint_b,
+            lp_mint: ctx.lp_mint,
+            pool_state: ctx.pool_state,
+            ata_a,
+            ata_b,
+            vault_a: ctx.vault_a,
+            vault_b: ctx.vault_b,
+            lp_token_account: ctx.user_lp_token_ata,
+            system_program: system_program::ID,
+            token_program: token_program_id,
+            associated_token_program: associated_token_id,
+        }
+        .to_account_metas(None),
+    );
+    let _ = send(&mut ctx.svm, instruction, &ctx.user, &[&ctx.user]).unwrap();
+
+    assert_eq!(token_balance(&ctx.svm, &ata_a), amount_a / 2);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), amount_b / 2);
+    assert_eq!(token_balance(&ctx.svm, &ctx.vault_a), amount_a / 2);
+    assert_eq!(token_balance(&ctx.svm, &ctx.vault_b), amount_b / 2);
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, 10000);
+    assert_eq!(pool_state.reserve_b, 10000);
+    assert_eq!(pool_state.lp_tokens_supply, 10000);
+    assert_eq!(token_balance(&ctx.svm, &lp_token_ata), 9000);
+
+    let k_before: u64 = 10000 * 10000;
+    let instruction = Instruction::new_with_bytes(
+        ctx.program_id,
+        &lp::instruction::Swap {
+            amount_in: 10000,
+            min_amount_out: 1,
+            a_to_b: true,
+        }
+        .data(),
+        lp::accounts::Swap {
+            signer: ctx.user.pubkey(),
+            mint_a: ctx.mint_a,
+            mint_b: ctx.mint_b,
+            pool_state: ctx.pool_state,
+            vault_a: ctx.vault_a,
+            vault_b: ctx.vault_b,
+            ata_a,
+            ata_b,
+            system_program: system_program::ID,
+            token_program: token_program_id,
+            associated_token_program: associated_token_id,
+        }
+        .to_account_metas(None),
+    );
+    let res = send(&mut ctx.svm, instruction, &ctx.user, &[&ctx.user]);
+    assert!(res.is_ok());
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, 20000);
+    assert_eq!(pool_state.reserve_b, 5008);
+
+    let k_after = pool_state.reserve_a * pool_state.reserve_b;
+    assert!(k_after >= k_before, "k spadlo! {} < {}", k_after, k_before);
+    assert_eq!(k_after, 20000 * 5008);
+    assert_eq!(token_balance(&ctx.svm, &ata_a), 0);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), 14992);
+}
+
+#[test]
+fn swap_b_to_a() {
+    let mut ctx = setup();
+
+    let amount_a: u64 = 20000;
+    let amount_b: u64 = 20000;
+    let min_lp_tokens: u64 = 1;
+
+    let ata_a = create_ata(&mut ctx.svm, &ctx.user, &ctx.user.pubkey(), &ctx.mint_a);
+    let ata_b = create_ata(&mut ctx.svm, &ctx.user, &ctx.user.pubkey(), &ctx.mint_b);
+    let lp_token_ata = get_associated_token_address(&ctx.user.pubkey(), &ctx.lp_mint);
+
+    mint_to(
+        &mut ctx.svm,
+        &ctx.user,
+        &ctx.user.pubkey(),
+        &ata_a,
+        &ctx.mint_a,
+        amount_a,
+    );
+    mint_to(
+        &mut ctx.svm,
+        &ctx.user,
+        &ctx.user.pubkey(),
+        &ata_b,
+        &ctx.mint_b,
+        amount_b,
+    );
+
+    assert_eq!(token_balance(&ctx.svm, &ata_a), amount_a);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), amount_b);
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, 0);
+    assert_eq!(pool_state.reserve_b, 0);
+
+    let instruction = Instruction::new_with_bytes(
+        ctx.program_id,
+        &lp::instruction::AddLiquidity {
+            amount_a: amount_a / 2,
+            amount_b: amount_b / 2,
+            min_lp_tokens,
+        }
+        .data(),
+        lp::accounts::AddLiquidity {
+            signer: ctx.user.pubkey(),
+            mint_a: ctx.mint_a,
+            mint_b: ctx.mint_b,
+            lp_mint: ctx.lp_mint,
+            pool_state: ctx.pool_state,
+            ata_a,
+            ata_b,
+            vault_a: ctx.vault_a,
+            vault_b: ctx.vault_b,
+            lp_token_account: ctx.user_lp_token_ata,
+            system_program: system_program::ID,
+            token_program: token_program_id,
+            associated_token_program: associated_token_id,
+        }
+        .to_account_metas(None),
+    );
+    let _ = send(&mut ctx.svm, instruction, &ctx.user, &[&ctx.user]).unwrap();
+
+    assert_eq!(token_balance(&ctx.svm, &ata_a), amount_a / 2);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), amount_b / 2);
+    assert_eq!(token_balance(&ctx.svm, &ctx.vault_a), amount_a / 2);
+    assert_eq!(token_balance(&ctx.svm, &ctx.vault_b), amount_b / 2);
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, 10000);
+    assert_eq!(pool_state.reserve_b, 10000);
+    assert_eq!(pool_state.lp_tokens_supply, 10000);
+    assert_eq!(token_balance(&ctx.svm, &lp_token_ata), 9000);
+
+    let instruction = Instruction::new_with_bytes(
+        ctx.program_id,
+        &lp::instruction::Swap {
+            amount_in: 10000,
+            min_amount_out: 1,
+            a_to_b: false,
+        }
+        .data(),
+        lp::accounts::Swap {
+            signer: ctx.user.pubkey(),
+            mint_a: ctx.mint_a,
+            mint_b: ctx.mint_b,
+            pool_state: ctx.pool_state,
+            vault_a: ctx.vault_a,
+            vault_b: ctx.vault_b,
+            ata_a,
+            ata_b,
+            system_program: system_program::ID,
+            token_program: token_program_id,
+            associated_token_program: associated_token_id,
+        }
+        .to_account_metas(None),
+    );
+    let res = send(&mut ctx.svm, instruction, &ctx.user, &[&ctx.user]);
+    assert!(res.is_ok());
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, 5008);
+    assert_eq!(pool_state.reserve_b, 20000);
+    assert_eq!(token_balance(&ctx.svm, &ata_a), 14992);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), 0);
+}
+
+#[test]
+fn swap_min_amount() {
+    let mut ctx = setup();
+
+    let amount_a: u64 = 20000;
+    let amount_b: u64 = 20000;
+    let min_lp_tokens: u64 = 1;
+
+    let ata_a = create_ata(&mut ctx.svm, &ctx.user, &ctx.user.pubkey(), &ctx.mint_a);
+    let ata_b = create_ata(&mut ctx.svm, &ctx.user, &ctx.user.pubkey(), &ctx.mint_b);
+    let lp_token_ata = get_associated_token_address(&ctx.user.pubkey(), &ctx.lp_mint);
+
+    mint_to(
+        &mut ctx.svm,
+        &ctx.user,
+        &ctx.user.pubkey(),
+        &ata_a,
+        &ctx.mint_a,
+        amount_a,
+    );
+    mint_to(
+        &mut ctx.svm,
+        &ctx.user,
+        &ctx.user.pubkey(),
+        &ata_b,
+        &ctx.mint_b,
+        amount_b,
+    );
+
+    assert_eq!(token_balance(&ctx.svm, &ata_a), amount_a);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), amount_b);
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, 0);
+    assert_eq!(pool_state.reserve_b, 0);
+
+    let instruction = Instruction::new_with_bytes(
+        ctx.program_id,
+        &lp::instruction::AddLiquidity {
+            amount_a: amount_a / 2,
+            amount_b: amount_b / 2,
+            min_lp_tokens,
+        }
+        .data(),
+        lp::accounts::AddLiquidity {
+            signer: ctx.user.pubkey(),
+            mint_a: ctx.mint_a,
+            mint_b: ctx.mint_b,
+            lp_mint: ctx.lp_mint,
+            pool_state: ctx.pool_state,
+            ata_a,
+            ata_b,
+            vault_a: ctx.vault_a,
+            vault_b: ctx.vault_b,
+            lp_token_account: ctx.user_lp_token_ata,
+            system_program: system_program::ID,
+            token_program: token_program_id,
+            associated_token_program: associated_token_id,
+        }
+        .to_account_metas(None),
+    );
+    let _ = send(&mut ctx.svm, instruction, &ctx.user, &[&ctx.user]).unwrap();
+
+    assert_eq!(token_balance(&ctx.svm, &ata_a), amount_a / 2);
+    assert_eq!(token_balance(&ctx.svm, &ata_b), amount_b / 2);
+    assert_eq!(token_balance(&ctx.svm, &ctx.vault_a), amount_a / 2);
+    assert_eq!(token_balance(&ctx.svm, &ctx.vault_b), amount_b / 2);
+
+    let pool_acc = ctx.svm.get_account(&ctx.pool_state).unwrap();
+    let mut data: &[u8] = &pool_acc.data;
+    let pool_state = lp::state::PoolState::try_deserialize(&mut data).unwrap();
+    assert_eq!(pool_state.reserve_a, 10000);
+    assert_eq!(pool_state.reserve_b, 10000);
+    assert_eq!(pool_state.lp_tokens_supply, 10000);
+    assert_eq!(token_balance(&ctx.svm, &lp_token_ata), 9000);
+
+    let instruction = Instruction::new_with_bytes(
+        ctx.program_id,
+        &lp::instruction::Swap {
+            amount_in: 10000,
+            min_amount_out: 10000,
+            a_to_b: false,
+        }
+        .data(),
+        lp::accounts::Swap {
+            signer: ctx.user.pubkey(),
+            mint_a: ctx.mint_a,
+            mint_b: ctx.mint_b,
+            pool_state: ctx.pool_state,
+            vault_a: ctx.vault_a,
+            vault_b: ctx.vault_b,
+            ata_a,
+            ata_b,
+            system_program: system_program::ID,
+            token_program: token_program_id,
+            associated_token_program: associated_token_id,
+        }
+        .to_account_metas(None),
+    );
+    let res = send(&mut ctx.svm, instruction, &ctx.user, &[&ctx.user]);
+    let logs = res.unwrap_err().meta.logs.join(" ");
+    assert!(
+        logs.contains("MinTokenAmountNotSatisfied"),
+        "logs: {}",
+        logs
+    );
     // assert!(res.is_err());
 }
