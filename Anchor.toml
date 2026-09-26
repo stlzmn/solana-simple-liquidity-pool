@@ -8,6 +8,7 @@ skip-lint = false
 
 [programs.localnet]
 lp = "29UGDKvnsZMAju1XvduUY3Ksqpx1MMuNzRpa3w584P9t"
+minter = "6uzbawPJTrdoLae6r85FtLbusbFS7EVwugV8V9KmUgwQ"
 
 [provider]
 cluster = "localnet"

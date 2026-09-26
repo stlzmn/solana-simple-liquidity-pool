@@ -20,7 +20,7 @@ use anchor_spl::{
         spl_associated_token_account::instruction::create_associated_token_account,
         ID as associated_token_id,
     },
-    token::spl_token::{self, state::Account, ID as token_program_id}, // token_2022::spl_token_2022::{extension::StateWithExtensions, state::Account},
+    token::spl_token::{self, state::Account, ID as token_program_id},
 };
 use litesvm::types::TransactionResult;
 use lp::{LP_MINT_SEED, POOL_STATE_SEED, VAULT_A_SEED, VAULT_B_SEED};
