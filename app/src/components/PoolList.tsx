@@ -1,6 +1,9 @@
 import { PublicKey } from "@solana/web3.js";
 import type { IdlTypes, Program } from "@coral-xyz/anchor";
 import type { Lp } from "../../../target/types/lp";
+import AddLiquidity from "../components/AddLiquidity";
+import RemoveLiquidity from "./RemoveLiquidityButton";
+import Swap from "./SwapButton";
 
 type LiquidityPool = IdlTypes<Lp>["poolState"];
 
@@ -28,14 +31,35 @@ function PoolList({ pools, program, publicKey }: PoolListProps) {
         <p className="empty-state">No pools yet. Create one above to get started.</p>
       )}
       <div className="pool-list">
-        {pools.map(({ publicKey, account }: { publicKey: PublicKey, account: LiquidityPool }) => (
-          <article className="pool-card" key={publicKey.toString()}>
+        {pools.map(({ publicKey: poolAddress, account }: { publicKey: PublicKey, account: LiquidityPool }) => (
+          <article className="pool-card" key={poolAddress.toString()}>
             <header className="pool-card-header">
               <span className="pool-pair">
-                {shortAddress(account.mintA.toString())} / {shortAddress(account.mintB.toString())}
+                <AddLiquidity
+                  program={program}
+                  publicKey={publicKey}
+                  mintA={account.mintA.toString()}
+                  mintB={account.mintB.toString()}
+                />
               </span>
-              <span className="pool-address" title={publicKey.toString()}>
-                {shortAddress(publicKey.toString())}
+              <span className="pool-pair">
+                <RemoveLiquidity
+                  program={program}
+                  publicKey={publicKey}
+                  mintA={account.mintA.toString()}
+                  mintB={account.mintB.toString()}
+                />
+              </span>
+              <span className="pool-pair">
+                <Swap
+                  program={program}
+                  publicKey={publicKey}
+                  mintA={account.mintA.toString()}
+                  mintB={account.mintB.toString()}
+                />
+              </span>
+              <span className="pool-address" title={poolAddress.toString()}>
+                {shortAddress(poolAddress.toString())}
               </span>
             </header>
 
