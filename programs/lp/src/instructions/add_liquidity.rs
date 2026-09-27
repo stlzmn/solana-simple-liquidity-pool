@@ -140,7 +140,7 @@ pub struct AddLiquidity<'info> {
         mut,
         token::authority = pool_state,
         token::mint = mint_b,
-        seeds = [VAULT_B_SEED, pool_state.key().as_ref()],
+        seeds =  [VAULT_B_SEED, pool_state.key().as_ref()],
         bump
     )]
     pub vault_b: Box<InterfaceAccount<'info, TokenAccount>>,

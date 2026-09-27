@@ -56,7 +56,7 @@ pub fn handle_swap(
     //     .to_u64()?;
     //
     let new_y = FixedPoint::from_int(old_k)
-        .div(&FixedPoint::from_int(reserve_a).add(&effective_amount_in)?)?;
+        .div(&FixedPoint::from_int(reserve_in).add(&effective_amount_in)?)?;
     let amount_out = FixedPoint::from_int(reserve_out).sub(&new_y)?.to_u64()?;
 
     require!(

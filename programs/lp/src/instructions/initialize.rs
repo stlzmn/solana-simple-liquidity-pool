@@ -1,8 +1,11 @@
-use crate::{state::PoolState, LP_MINT_SEED, POOL_STATE_SEED, VAULT_A_SEED, VAULT_B_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
+use crate::{state::PoolState, LP_MINT_SEED, POOL_STATE_SEED, VAULT_A_SEED, VAULT_B_SEED};
+use crate::error::LpError;
+
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
+    require!(ctx.accounts.mint_a.key() != ctx.accounts.mint_b.key(), LpError::SameMints);
     ctx.accounts.pool_state.reserve_a = 0;
     ctx.accounts.pool_state.reserve_b = 0;
     ctx.accounts.pool_state.lp_tokens_supply = 0;

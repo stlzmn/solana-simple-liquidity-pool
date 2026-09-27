@@ -12,9 +12,11 @@ interface SwapProps {
   publicKey: PublicKey | null,
   mintA: string | null,
   mintB: string | null,
+  refresh_bals: () => Promise<void>,
+  refresh_pools: () => Promise<void>,
 }
 
-function Swap({ program, publicKey, mintA, mintB }: SwapProps) {
+function Swap({ program, publicKey, mintA, mintB, refresh_bals, refresh_pools }: SwapProps) {
   const [loading, setLoading] = useState(false);
   const [amountIn, setAmountIn] = useState("");
   const [minAmountOut, setMinAmountOut] = useState("");
@@ -69,8 +71,8 @@ function Swap({ program, publicKey, mintA, mintB }: SwapProps) {
 
       console.log("tx:", sig);
 
-      // await refresh_bals();
-      // await refresh_ords();
+      await refresh_bals();
+      await refresh_pools();
     } catch (e: any) {
       console.error("Add Liquidity failed", e);
       console.error("logs:", e?.transactionLogs);

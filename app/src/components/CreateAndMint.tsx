@@ -10,10 +10,10 @@ import { MINTER_PROGRAM_ID } from "../constants";
 interface CreateAndMintProps {
   program: Program<Minter> | null,
   publicKey: PublicKey | null,
-  refresh: () => Promise<void>,
+  refresh_bals: () => Promise<void>,
 }
 
-function CreateAndMint({ program, publicKey, refresh }: CreateAndMintProps) {
+function CreateAndMint({ program, publicKey, refresh_bals }: CreateAndMintProps) {
   const [loading, setLoading] = useState(false);
   const [seed, setSeed] = useState("");
   const [amount, setAmount] = useState("");
@@ -47,7 +47,7 @@ function CreateAndMint({ program, publicKey, refresh }: CreateAndMintProps) {
         .rpc();
 
       console.log("tx:", sig);
-      await refresh();
+      await refresh_bals();
     } catch (e) {
       console.error("initialize failed", e);
     } finally {

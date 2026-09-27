@@ -21,9 +21,11 @@ interface PoolListProps {
   program: Program<Lp>,
   publicKey: PublicKey,
   pools: any[],
+  refresh_bals: () => Promise<void>,
+  refresh_pools: () => Promise<void>,
 }
 
-function PoolList({ pools, program, publicKey }: PoolListProps) {
+function PoolList({ pools, program, publicKey, refresh_bals, refresh_pools }: PoolListProps) {
   return (
     <div className="pool-list-wrap">
       <h3 className="pool-list-title">Available Liquidity Pools</h3>
@@ -40,6 +42,8 @@ function PoolList({ pools, program, publicKey }: PoolListProps) {
                   publicKey={publicKey}
                   mintA={account.mintA.toString()}
                   mintB={account.mintB.toString()}
+                  refresh_bals={refresh_bals}
+                  refresh_pools={refresh_pools}
                 />
               </span>
               <span className="pool-pair">
@@ -48,6 +52,8 @@ function PoolList({ pools, program, publicKey }: PoolListProps) {
                   publicKey={publicKey}
                   mintA={account.mintA.toString()}
                   mintB={account.mintB.toString()}
+                  refresh_bals={refresh_bals}
+                  refresh_pools={refresh_pools}
                 />
               </span>
               <span className="pool-pair">
@@ -56,6 +62,8 @@ function PoolList({ pools, program, publicKey }: PoolListProps) {
                   publicKey={publicKey}
                   mintA={account.mintA.toString()}
                   mintB={account.mintB.toString()}
+                  refresh_bals={refresh_bals}
+                  refresh_pools={refresh_pools}
                 />
               </span>
               <span className="pool-address" title={poolAddress.toString()}>

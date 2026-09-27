@@ -28,7 +28,7 @@ export function useBalances() {
       const info = account.data.parsed.info;
       return {
         mint: info.mint as string,
-        amount: info.tokenAmount.uiAmountString,
+        amount: info.tokenAmount.amount,
       };
     });
 

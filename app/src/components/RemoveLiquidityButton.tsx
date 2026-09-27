@@ -12,9 +12,11 @@ interface RemoveLiquidityProps {
   publicKey: PublicKey | null,
   mintA: string | null,
   mintB: string | null,
+  refresh_bals: () => Promise<void>,
+  refresh_pools: () => Promise<void>,
 }
 
-function RemoveLiquidity({ program, publicKey, mintA, mintB }: RemoveLiquidityProps) {
+function RemoveLiquidity({ program, publicKey, mintA, mintB, refresh_bals, refresh_pools }: RemoveLiquidityProps) {
   const [loading, setLoading] = useState(false);
   const [minAmountA, setMinAmountA] = useState("");
   const [minAmountB, setMinAmountB] = useState("");
@@ -78,8 +80,8 @@ function RemoveLiquidity({ program, publicKey, mintA, mintB }: RemoveLiquidityPr
 
       console.log("tx:", sig);
 
-      // await refresh_bals();
-      // await refresh_ords();
+      await refresh_bals();
+      await refresh_pools();
     } catch (e: any) {
       console.error("Add Liquidity failed", e);
       console.error("logs:", e?.transactionLogs);

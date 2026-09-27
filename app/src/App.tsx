@@ -13,7 +13,7 @@ function App() {
   const minterProgram = useMinterProgram();
   const { publicKey } = useWallet();
   const { solBalance, balances, refresh_bals } = useBalances();
-  const { pools, refresh_ords } = usePools(lpProgram);
+  const { pools, refresh_pools } = usePools(lpProgram);
 
   return (
     <div className="app">
@@ -23,7 +23,7 @@ function App() {
           <span className="app-subtitle">Liquidity Pool - Swap and Provide Liquidity</span>
         </div>
         <div className="app-header-actions">
-          <CreateAndMint program={minterProgram} publicKey={publicKey} refresh={refresh_bals} />
+          <CreateAndMint program={minterProgram} publicKey={publicKey} refresh_bals={refresh_bals} />
         </div>
       </header>
 
@@ -39,6 +39,8 @@ function App() {
         <InitializePool
           program={lpProgram!}
           publicKey={publicKey!}
+          refresh_bals={refresh_bals}
+          refresh_pools={refresh_pools}
         />
       </section>
       <section className="card">
@@ -46,6 +48,8 @@ function App() {
           program={lpProgram!}
           publicKey={publicKey!}
           pools={pools}
+          refresh_bals={refresh_bals}
+          refresh_pools={refresh_pools}
         />
       </section>
     </div>

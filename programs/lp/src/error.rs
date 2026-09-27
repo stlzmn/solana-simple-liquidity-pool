@@ -12,6 +12,8 @@ pub enum LpError {
     UnderflowError,
     #[msg("Wrong mint")]
     WrongMint,
+    #[msg("Same Mints")]
+    SameMints,
     #[msg("Minimumt token amount not satisfied")]
     MinTokenAmountNotSatisfied,
     #[msg("Lp loss prevented due to k_new < k_old")]

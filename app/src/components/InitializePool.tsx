@@ -12,9 +12,11 @@ import { LP_PROGRAM_ID } from "../constants";
 interface InitializePoolProps {
   program: Program<Lp> | null,
   publicKey: PublicKey | null,
+  refresh_bals: () => Promise<void>,
+  refresh_pools: () => Promise<void>,
 }
 
-function InitializePool({ program, publicKey }: InitializePoolProps) {
+function InitializePool({ program, publicKey, refresh_bals, refresh_pools }: InitializePoolProps) {
   const [loading, setLoading] = useState(false);
   const [mintA, setMintA] = useState("");
   const [mintB, setMintB] = useState("");
@@ -48,6 +50,9 @@ function InitializePool({ program, publicKey }: InitializePoolProps) {
           systemProgram: SYSTEM_PROGRAM_ID,
         })
         .rpc();
+
+      await refresh_bals();
+      await refresh_pools();
     } catch (e) {
       console.error("Failed to send initialize pool tx: ", e);
     } finally {

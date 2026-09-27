@@ -19,7 +19,7 @@ pub fn handle_create_and_mint(
     };
     let cpi_program_id = ctx.accounts.token_program.key();
     let cpi_context = CpiContext::new_with_signer(cpi_program_id, cpi_accounts, signer_seeds);
-    token_interface::mint_to(cpi_context, amount * 1000000)?;
+    token_interface::mint_to(cpi_context, amount)?;
     Ok(())
 }
 

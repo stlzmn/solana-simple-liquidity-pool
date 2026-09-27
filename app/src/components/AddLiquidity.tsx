@@ -12,9 +12,11 @@ interface AddLiquidityProps {
   publicKey: PublicKey | null,
   mintA: string | null,
   mintB: string | null,
+  refresh_bals: () => Promise<void>,
+  refresh_pools: () => Promise<void>,
 }
 
-function AddLiquidity({ program, publicKey, mintA, mintB }: AddLiquidityProps) {
+function AddLiquidity({ program, publicKey, mintA, mintB, refresh_bals, refresh_pools }: AddLiquidityProps) {
   const [loading, setLoading] = useState(false);
   const [amountA, setAmountA] = useState("");
   const [amountB, setAmountB] = useState("");
@@ -78,8 +80,8 @@ function AddLiquidity({ program, publicKey, mintA, mintB }: AddLiquidityProps) {
 
       console.log("tx:", sig);
 
-      // await refresh_bals();
-      // await refresh_ords();
+      await refresh_bals();
+      await refresh_pools();
     } catch (e: any) {
       console.error("Add Liquidity failed", e);
       console.error("logs:", e?.transactionLogs);
